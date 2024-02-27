@@ -62,7 +62,10 @@ app.use(
 		secret: 'your-secret-key', // Key bảo mật, hãy thay đổi giá trị này cần được bảo mật vào có độ khó cao
 		resave: false,
 		saveUninitialized: true,
-		cookie: { secure: true }, // Thiết lập cookie chỉ được truyền qua HTTPS
+		cookie: {
+			secure: true, // Thiết lập cookie chỉ được truyền qua HTTPS
+			maxAge: 1000 * 60 * 60 * 24, // 1 day
+		},
 	}),
 );
 ```
