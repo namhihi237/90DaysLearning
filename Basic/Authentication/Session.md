@@ -13,6 +13,22 @@
   - Lưu trữ trong database: Phương pháp nay cho chúng ta tính bền bỉ nhưng có thể ảnh hưởng tới hiệu suất của ứng dụng.
   - Lưu trữ trong redis: đáp ứng những nhược điểm trên nhưng vẫn giữ được hiệu suất cao của ứng dụng
 
+```js
+import session from 'express-session';
+import connectRedis from 'connect-redis';
+import redis from 'redis';
+
+const RedisStore = connectRedis(session);
+const redisClient = redis.createClient();
+
+app.use(
+	session({
+		store: new RedisStore({ client: redisClient }),
+		// ...
+	}),
+);
+```
+
 ### Quá trình hạot động
 
 1. Người dùng đăng nhập bằng cách cung cấp thông tin tài khoản
@@ -37,6 +53,19 @@
 - Hạn chế lại thời gian tồn tại của session
 - Áp dụng các biện pháp bảo vệ CSRF như sử dụng CSRF token, same site cookie, HTTP referer header, captcha
 - Sử dụng HTTPs để mã hoá
+
+Ví dụ trong express chúng ta có thể sử dụng module `express-session`
+
+```js
+app.use(
+	session({
+		secret: 'your-secret-key', // Key bảo mật, hãy thay đổi giá trị này cần được bảo mật vào có độ khó cao
+		resave: false,
+		saveUninitialized: true,
+		cookie: { secure: true }, // Thiết lập cookie chỉ được truyền qua HTTPS
+	}),
+);
+```
 
 ### So sánh JWT và Session
 
