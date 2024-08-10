@@ -22,6 +22,7 @@
 - Được sử dụng lý tưởng cho các tình huống yêu cầu quyền truy cập của người dùng thông qua hệ thống khác, hoặc dich vụ bên thứ 3 như Google, Facebook,...
 
 <img src="../assets/oauth.png" alt="sso" style="height: 400px;"/>
+
 ## 4. API Key authentication
 - Tạo ra khoá duy nhất cho người dùng hay ứng dụng được gửi trong header
 
