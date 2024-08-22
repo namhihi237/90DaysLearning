@@ -115,6 +115,10 @@ Ngoài ra còn có `LIKE` and `~` với pattern bắt đầu với một chuỗi
 
 Đối với `%bar` nó sẽ không hỗ trợ bởi B-Tree index
 
+Để xem được indexs đang có trong table chúng ta sử dụng câu lệnh sau:
+```sql
+SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'users';
+```
 
 ### Multicolumn Indexs
 Một index có thể được xác định bởi nhiều hơn 1 cột
@@ -199,3 +203,63 @@ Execution Time: 0.047 ms
 Sau khi đánh index, thì nó đã sử dụng Index scan.
 
 Dễ thấy thời gian giảm từ `1433ms -> 0,047ms`
+
+Có một lưu ý nhiều người nghĩ răng khi chúng ta đánh index thì nó sẽ chỉ giúp tăng tốc độ read dữ liệu và làm chậm tốc độ write. Điều này là không đúng, việc nhanh hay chậm thì chúng ta phải xem yếu tố nào đang chiếm 80% theo nguyên lý (80/20)
+
+Chúng ta có ví dụ:
+```sql
+delete from uses where age = 30;
+```
+Với trường hợp bảng có 5M records, thì chiến lược thực thi nếu không có index hệ thống phải scan toàn bộ bảng để tìm những bản ghi có age = 30 để xoá
+
+```
+Delete on users3  (cost=0.00..188568.00 rows=0 width=0) (actual time=561.508..561.508 rows=0 loops=1)
+  ->  Seq Scan on users3  (cost=0.00..188568.00 rows=1 width=6) (actual time=561.507..561.507 rows=0 loops=1)
+        Filter: (age = 30)
+        Rows Removed by Filter: 5000000
+Planning Time: 0.243 ms
+Execution Time: 562.994 ms
+```
+
+
+Sau khi đánh index cho age column, thời gian delete giảm xuống đi rất nhiều.
+```text
+Delete on users3  (cost=0.43..8.45 rows=0 width=0) (actual time=0.016..0.017 rows=0 loops=1)
+  ->  Index Scan using age_indx on users3  (cost=0.43..8.45 rows=1 width=6) (actual time=0.015..0.015 rows=0 loops=1)
+        Index Cond: (age = 30)
+Planning Time: 0.156 ms"
+Execution Time: 0.038 ms
+```
+
+Quay lại với kiến thức chúng ta đề cập ở trên, chúng ta sẽ đánh index sử dụng multiple colomn.
+
+Trường hợp `(status, age)`
+
+```
+Delete on users3  (cost=0.43..54772.21 rows=0 width=0) (actual time=8.407..8.408 rows=0 loops=1)
+  ->  Index Scan using idx_status_age on users3  (cost=0.43..54772.21 rows=1 width=6) (actual time=8.405..8.406 rows=0 loops=1)
+        Index Cond: (age = 30)
+Planning Time: 0.089 ms
+Execution Time: 8.435 ms
+```
+
+Như ta thấy thì nó vẫn sử dụng index scan và thời gian vẫn còn cao hơn khi chúng ta đánh index cho chỉ cột age
+
+
+Trường hợp `age, status`
+
+```
+Delete on users3  (cost=0.43..8.45 rows=0 width=0) (actual time=0.026..0.026 rows=0 loops=1)
+  ->  Index Scan using idx_status_age on users3  (cost=0.43..8.45 rows=1 width=6) (actual time=0.025..0.025 rows=0 loops=1)
+        Index Cond: (age = 30)
+Planning Time: 0.303 ms
+Execution Time: 0.045 ms
+```
+
+Thời giản giảm đáng kể, tương đương với khi chúng ta đánh index cột age
+
+Vậy nguyên lý 80/20 là gì, đây là nguyên tắc Patero (80% kết quả đến từ 20% nỗ lực) khi áp dụng vào việc tạo chỉ mục trong DB, tập trung vào việc tối ưu hoá hiệu suất truy vấn bằng cách tập trung vào một số ít các truy vấn quan trọng, mang lại lợi ích lớn nhất thay vì tối ưu hoá hết tất cả các truy vấn.
+
+Áp dụng:
+- Xác định các truy vấn quan trọng: Xác định các truy vấn thực thi thường xuyên nhất hoặc tiêu tốn tài nguyên hệ thống nhất. Truy vấn này thường chiếm 20% số lương truy vấn nhưng chiếm 80% thời gian thực thi hoạc tài nguyên.
+- Tạo index dựa trên các truy vấn này
